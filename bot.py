@@ -46,19 +46,27 @@ class MyClient(discord.Client):
   
   async def setup_hook(self):
     self.tree.copy_global_to(guild=guild)
-    await self.tree.sync(guild=guild)
-  
-  async def on_ready(self):
-    logger.info(f'{self.user} is ready!')
+    await self.tree.sync(guild=guild)    
   
 intents = discord.Intents.default()
 intents.message_content = True
 
 client = MyClient(intents=intents)
 
+@client.event
+async def on_connect():
+  logger.info('Jörmungandr has established a connection')
+
+@client.event
+async def on_disconnnect():
+  logger.info('Jörmungandr has lost connection')
+
+@client.event
+async def on_ready():
+  logger.info('Jörmungandr has awoken!')
+
 @client.tree.command()
 async def hello(interaction: discord.Interaction):
   await interaction.response.send_message(f"hi, {interaction.user.mention}")
-  
-client.run(bot_token)
 
+client.run(bot_token)
