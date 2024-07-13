@@ -66,7 +66,8 @@ async def on_ready():
   logger.info('Jörmungandr has awoken!')
 
 @client.tree.command()
-async def hello(interaction: discord.Interaction):
-  await interaction.response.send_message(f"hi, {interaction.user.mention}")
+async def status(interaction: discord.Interaction):
+  logger.info('Retrieving statuses')
+  await interaction.response.send_message("Here are the status of the servers!")
 
 client.run(bot_token)
