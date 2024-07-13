@@ -24,7 +24,6 @@ else:
     if opt in ("-d", "--debug") and arg.lower() == "true" :
       os.environ["DEBUG"] = arg.lower()
 
- 
 logger.info("Loading environment variables")
 dotenv.load_dotenv()
 app_id = os.getenv("APP_ID")
