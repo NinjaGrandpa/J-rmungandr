@@ -6,6 +6,8 @@ import logging
 from sys import argv
 from getopt import getopt, GetoptError
 
+import docker
+
 print("")
 print("---")
 
