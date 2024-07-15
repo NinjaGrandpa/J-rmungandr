@@ -6,19 +6,18 @@ import logging
 from sys import argv
 from getopt import getopt, GetoptError
 
-import docker
-
 print("")
 print("---")
 
 discord.utils.setup_logging(level=(logging.INFO, logging.DEBUG)[os.getenv("DEBUG") == "true"])
-
 logger = logging.getLogger("Jörmungandr")
+
+logger.info("Retrieving arguments")
 
 try:
   options, arguments = getopt(argv[1:], "e:d:",["environment=", "debug="])
 except GetoptError:
-  logger.error("Unable to get options")
+  logger.error("Unable to retrieve arguments")
 else:
   for opt, arg in options:
     if opt in ("-e", "--environment") and arg == "production" or "development":
@@ -28,11 +27,21 @@ else:
 
 logger.info("Loading environment variables")
 dotenv.load_dotenv()
-app_id = os.getenv("APP_ID")
-app_secret = os.getenv("APP_SECRET")
-bot_token = os.getenv("BOT_TOKEN")
-guild = discord.Object(id=os.getenv("GUILD")) 
-environment = os.getenv("ENVIRONMENT")
+env_vars = dotenv.dotenv_values()
+
+app_id = os.getenv("APP_ID", "")
+app_secret = os.getenv("APP_SECRET", "")
+bot_token = os.getenv("BOT_TOKEN", "") 
+guildId = os.getenv("GUILD", "")
+environment = os.getenv("ENVIRONMENT", "development") 
+
+doj = (lambda x: x if x is "development" or "production" else "development")
+
+for key, val in env_vars.items():
+  if not val:
+    logger.warning(f"Environment variable: {key} is empty")
+
+guild = discord.Object(id = guildId) 
 
 if environment not in ("development", "production"):
   os.environ["ENVIRONMENT"] = "development"
