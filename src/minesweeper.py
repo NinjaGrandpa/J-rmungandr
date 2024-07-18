@@ -1,13 +1,3 @@
-# Max: 30x30 24 mines
-# Min: 9x9 10 mines
-# Easy: 9x9 10 mines
-# Medium: 16x30 40 mines
-# Hard: 24x30 160 mines
-
-# Drawing Mines:
-# Create a list with 81 boxes using random.choices(["[ ]", "[X]"], k=10)
-# Then break it down in its corresponding rows and columns
-
 import random
 import os
 import keyboard
@@ -22,6 +12,11 @@ class Difficulty:
         self.cols = cols
         self.mines = mines
 
+class Cords:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
 class Tile:
     def __init__(self, x: int, y: int, is_mine = False):
         self.x = x
@@ -30,28 +25,123 @@ class Tile:
         self.is_marked = False
         self.is_revealed = False
         self.is_selected = False
-        
+        self.mine_count = 0
+
     def __str__(self):
         if (self.is_mine and self.is_revealed):
             return "[X]" if self.is_selected else "[x]"
         elif (self.is_revealed):
-            return "[.]" if self.is_selected else "[]"
-        elif (self.is_marked):
+            return f"[{self.mine_count}]" if self.is_selected else self.__print_mine_count__() if self.mine_count > 0 else "[ ]"
+        elif (self.is_marked and self.is_revealed is False):
             return "[P]" if self.is_selected else "[p]"
         else: 
             return "[O]" if self.is_selected else "[0]"
+    
+    def __print_mine_count__(self):
+        match self.mine_count:
+            case 1:
+                return f"[\033[94m{self.mine_count}\033[00m]"
+            case 2:
+                return f"[\033[92m{self.mine_count}\033[00m]"
+            case 3:
+                return f"[\033[91m{self.mine_count}\033[00m]"
+            case _:
+                return f"[\033[95m{self.mine_count}\033[00m]"
+            
+            
+
+    def get_neighbours(self, col_count, row_count):
+        neighbours: list[Cords] = []
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if (self.x + j > -1 and self.x + j < col_count and self.y + i > -1 and self.y + i < row_count and i is not self.y and j is not self.x):
+                    neighbours.append(Cords(self.x + j, self.y + i))
         
-    def mark(self):
-        self.is_marked = True
-        
+        return neighbours
+
+class Grid:
+    def __init__(self, difficulty: Difficulty):
+        self.difficulty = difficulty
+        self.row_count = difficulty.rows
+        self.col_count = difficulty.cols
+        self.mine_count = difficulty.mines
+        self.grid = self.__create_grid__()
+        self.selected_tile = self.__init_select__()
+        self.activated_mine = False
+
+    def __create_grid__(self):
+        grid = [[Tile(x = x, y = y) for x in range(self.col_count)] for y in range(self.row_count)]
+        tile_count = self.col_count * self.row_count
+
+        for mine in random.sample(range(0, tile_count - 1), self.mine_count):
+            r  = mine // self.col_count
+            c = mine % self.col_count
+            grid[r][c].is_mine = True
+
+        for col in grid:
+            for tile in col:
+                neighbours = tile.get_neighbours(self.col_count, self.row_count)
+                tiles = [grid[n.y][n.x] for n in neighbours]
+                tile.mine_count = len(list(filter(lambda t: t.is_mine == True, tiles)))
+
+        return grid
+
+    def __init_select__(self):
+        if (self.col_count % 2 == 0 and self.row_count % 2 == 0):
+            return self.grid[0][0]
+        else:
+            return self.grid[self.row_count//2][self.col_count//2]
+
+    def draw_grid(self):
+        clear()
+        print(f"Current Difficulty {self.row_count}x{self.col_count}, {self.mine_count} mines.\n")
+        print(f"x ", end = "")
+        for i in range(self.col_count):
+            print(f" {i} ", end = "")
+        print("")
+        for row in self.grid:
+            print(f"{self.grid.index(row)} ", end="")
+            for col in row:
+                print(col, end="")
+            print("")
+
+    def select(self, x, y):
+        self.selected_tile.is_selected = False
+        self.selected_tile = self.grid[y][x]
+        self.selected_tile.is_selected = True
+
     def reveal(self):
-        self.is_revealed = True
-        
-    def select(self):
-        self.is_selected = True
-        
-    def unselect(self):
-        self.is_selected = False
+        if self.selected_tile.is_mine:
+            print("BANG!")
+            self.activated_mine = True
+            self.reveal_all()
+
+        else:
+            self.selected_tile.is_revealed = True
+            neighbours = [self.grid[cords.y][cords.x] for cords in self.selected_tile.get_neighbours(self.col_count, self.row_count)]
+
+            for n in neighbours:
+                n.is_revealed = False if n.is_mine else True
+                if n.mine_count == 0:
+                    self.reveal_neighbours(n)
+
+
+    def reveal_neighbours(self, tile: Tile):
+        neighbours = [self.grid[cords.y][cords.x] for cords in tile.get_neighbours(self.col_count, self.row_count)]
+
+        for n in neighbours:
+            n.is_revealed = False if n.is_mine else True
+
+    def reveal_all(self):
+        for row in self.grid:
+                for col in row:
+                    col.is_revealed = True
+
+    def mark(self):
+        if self.selected_tile.is_marked:
+                self.selected_tile.is_marked = False
+        else:
+            self.selected_tile.is_marked = True
 
 DIFF_EASY = Difficulty(9, 9, 10)
 DIFF_MEDIUM = Difficulty(16, 30, 40)
@@ -105,102 +195,52 @@ def menu():
             else:
                 print("Choose a difficulty or create a custom difficulty by entering the amount of rows, columns and mines.")
                 menu()
+
     return difficulty
 
 def play_game(difficulty: Difficulty):
-    tile_count = difficulty.rows * difficulty.cols
-
-    grid = [[Tile(x = x, y = y) for x in range(difficulty.cols)] for y in range(difficulty.rows)]
-    # player_grid = [row.copy() for row in master_grid]
     
-    for mine in random.sample(range(0, tile_count - 1), difficulty.mines):
-        r  = mine // difficulty.cols
-        c = mine % difficulty.cols
-        grid[r][c].is_mine = True
+    grid = Grid(difficulty)
+    grid.draw_grid()
 
-    def draw_grid():
-        clear()
-        print(f"Current Difficulty {difficulty.rows}x{difficulty.cols}, {difficulty.mines} mines.\n")
-        print(f"x ", end = "")
-        for i in range(difficulty.cols):
-            print(f" {i} ", end = "")
-            # print(f" {chr(97 + i)} ", end = "")
-        print("")
-        for row in grid:
-            print(f"{grid.index(row)} ", end="")
-            for col in row:
-                print(col, end="")
-            print("")
-               
-    if (difficulty.cols % 2 == 0 and difficulty.rows % 2 == 0):
-        selected_tile = grid[0][0]
-    else:
-        selected_tile = grid[(difficulty.rows//2)][(difficulty.cols//2)]
-
-    selected_tile.select()
-
-    draw_grid()
-    
     while True:
-        user_input = keyboard.read_key()    
-        print(selected_tile.x, selected_tile.y)  
-        match user_input:
-            case 'vänsterpil' | "left":
-                if (selected_tile.x - 1 != -1):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.y][selected_tile.x - 1]
-                    selected_tile.select()
-                else:
-                    pass
-                
-            case 'högerpil' | 'right':
-                if (selected_tile.x + 1 != difficulty.cols):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.y][selected_tile.x + 1]
-                    selected_tile.select()
-                else:
-                    pass
-                
-            case 'uppil' | "up":
-                if (selected_tile.y - 1 != -1):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.y - 1][selected_tile.x]
-                    selected_tile.select()
-                else:
-                    pass
-                
-            case 'nedpil' | "down":
-                if (selected_tile.y + 1 != difficulty.rows):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.y + 1][selected_tile.x]
-                    selected_tile.select()
-                else:
-                    pass
-                
-            case 'space':
-                selected_tile.reveal()
-                
-            case 'skift' | "shift":
-                selected_tile.mark()
+        print(grid.selected_tile.x, grid.selected_tile.y)
+        keyboard.read_key()
         
-        draw_grid()
-        print(selected_tile.x, selected_tile.y)  
-        
+        if keyboard.is_pressed("vänsterpil"):
+            if (grid.selected_tile.x - 1 != -1):
+                grid.select(grid.selected_tile.x - 1, grid.selected_tile.y)
+                       
+        if keyboard.is_pressed("högerpil"):
+            if (grid.selected_tile.x + 1 != difficulty.cols):
+                grid.select(grid.selected_tile.x + 1, grid.selected_tile.y)
+                      
+        if keyboard.is_pressed('uppil'):
+            if (grid.selected_tile.y - 1 != -1):
+                grid.select(grid.selected_tile.x, grid.selected_tile.y - 1)
+                      
+        if keyboard.is_pressed('nedpil'):
+            if (grid.selected_tile.y + 1 != difficulty.rows):
+                grid.select(grid.selected_tile.x, grid.selected_tile.y + 1)
+                      
+        if keyboard.is_pressed('space'):
+            grid.reveal()
             
+        if keyboard.is_pressed('skift'):
+            grid.mark()
 
-    play_again = input("\nDo you want to play again? Y/N: ")
-    if play_again.lower() == "y":
-        play_game(difficulty)
+        if grid.activated_mine:
+            grid.draw_grid()
+            play_again = input("\nDo you want to play again? Y/N: ")
+            if play_again.lower() == "y":
+                play_game(difficulty)
+            else:
+                break
 
+        grid.draw_grid()
+        
 while True:
     clear()
     difficulty = menu()
     clear()
     play_game(difficulty)
-    sleep(5)
-
-# while True:
-#     if keyboard.read_key() == "q":
-#         print("Do you want to quit the game Y/N?")
-#         if keyboard.read_key() == "Y":
-#             exit()
