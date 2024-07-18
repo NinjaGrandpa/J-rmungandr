@@ -35,7 +35,7 @@ class Tile:
         if (self.is_mine and self.is_revealed):
             return "[X]" if self.is_selected else "[x]"
         elif (self.is_revealed):
-            return "[ ]" if self.is_selected else "[.]"
+            return "[.]" if self.is_selected else "[]"
         elif (self.is_marked):
             return "[P]" if self.is_selected else "[p]"
         else: 
@@ -110,7 +110,7 @@ def menu():
 def play_game(difficulty: Difficulty):
     tile_count = difficulty.rows * difficulty.cols
 
-    grid = [[Tile(x, y) for y in range(difficulty.cols)] for x in range(difficulty.rows)]
+    grid = [[Tile(x = x, y = y) for x in range(difficulty.cols)] for y in range(difficulty.rows)]
     # player_grid = [row.copy() for row in master_grid]
     
     for mine in random.sample(range(0, tile_count - 1), difficulty.mines):
@@ -146,28 +146,36 @@ def play_game(difficulty: Difficulty):
         print(selected_tile.x, selected_tile.y)  
         match user_input:
             case 'vänsterpil' | "left":
-                if (selected_tile.y + -1 < 0):
+                if (selected_tile.x - 1 != -1):
                     selected_tile.unselect()
-                    selected_tile = grid[selected_tile.x][selected_tile.y + -1]
+                    selected_tile = grid[selected_tile.y][selected_tile.x - 1]
                     selected_tile.select()
+                else:
+                    pass
                 
             case 'högerpil' | 'right':
-                if (selected_tile.y + 1 != difficulty.rows):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.x][selected_tile.y + 1]
-                    selected_tile.select()
-                
-            case 'uppil' | "up":
-                if (selected_tile.y + -1 < 0):
-                    selected_tile.unselect()
-                    selected_tile = grid[selected_tile.x + -1][selected_tile.y]
-                    selected_tile.select()
-                
-            case 'nedpil' | "down":
                 if (selected_tile.x + 1 != difficulty.cols):
                     selected_tile.unselect()
-                    selected_tile = grid[selected_tile.x + 1][selected_tile.y]
+                    selected_tile = grid[selected_tile.y][selected_tile.x + 1]
                     selected_tile.select()
+                else:
+                    pass
+                
+            case 'uppil' | "up":
+                if (selected_tile.y - 1 != -1):
+                    selected_tile.unselect()
+                    selected_tile = grid[selected_tile.y - 1][selected_tile.x]
+                    selected_tile.select()
+                else:
+                    pass
+                
+            case 'nedpil' | "down":
+                if (selected_tile.y + 1 != difficulty.rows):
+                    selected_tile.unselect()
+                    selected_tile = grid[selected_tile.y + 1][selected_tile.x]
+                    selected_tile.select()
+                else:
+                    pass
                 
             case 'space':
                 selected_tile.reveal()
